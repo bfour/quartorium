@@ -1,7 +1,6 @@
-import { useDeferredValue, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Markdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import LocalVisualEditor from '../components/editor/LocalVisualEditor';
 import './LocalEditorPage.css';
 
 const blankDocument = { path: null, revision: null, original: '', savedSource: '' };
@@ -32,15 +31,11 @@ function toFileSource(source, original) {
   return bom + source.replaceAll('\n', lineEnding);
 }
 
-// Keep front matter in the source and omit it from the Markdown preview.
-const frontMatter = /^---[ \t]*\n(?:[^\n]*\n)*?(?:---|\.\.\.)[ \t]*(?:\n|$)/;
-const previewComponents = {
-  img: ({ alt }) => <span>{alt ? `[Image: ${alt}]` : '[Image]'}</span>,
-};
-
 export default function LocalEditorPage() {
   const [document, setDocument] = useState(blankDocument);
   const [source, setSource] = useState('');
+  const [mode, setMode] = useState('visual');
+  const [documentVersion, setDocumentVersion] = useState(0);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -48,7 +43,6 @@ export default function LocalEditorPage() {
   const [listing, setListing] = useState(null);
   const [fileName, setFileName] = useState('');
   const picker = useRef(null);
-  const previewSource = useDeferredValue(source);
   const dirty = source !== document.savedSource;
 
   useEffect(() => {
@@ -69,6 +63,7 @@ export default function LocalEditorPage() {
     if (!mayDiscard()) return;
     setDocument(blankDocument);
     setSource('');
+    setDocumentVersion(version => version + 1);
     setError('');
     setStatus('');
   }
@@ -111,6 +106,7 @@ export default function LocalEditorPage() {
       const savedSource = opened.content.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
       setDocument({ path: opened.path, revision: opened.revision, original: opened.content, savedSource });
       setSource(savedSource);
+      setDocumentVersion(version => version + 1);
       setStatus('');
       closePicker();
     } catch (failure) {
@@ -153,7 +149,10 @@ export default function LocalEditorPage() {
     void saveDocument(path, null);
   }
 
-  const preview = previewSource.replace(frontMatter, '');
+  function changeSource(nextSource) {
+    setSource(nextSource);
+    setStatus('');
+  }
 
   return (
     <main className="local-editor">
@@ -171,28 +170,28 @@ export default function LocalEditorPage() {
           <button type="button" className="primary" onClick={() => saveDocument(document.path, document.revision)} disabled={busy || !dirty}>Save</button>
         )}
         <button type="button" className={document.path ? undefined : 'primary'} onClick={() => showPicker('save')} disabled={busy}>Save As</button>
+        <div className="local-editor-modes" role="group" aria-label="Editor mode">
+          <button type="button" aria-pressed={mode === 'visual'} onClick={() => setMode('visual')} disabled={busy}>Visual</button>
+          <button type="button" aria-pressed={mode === 'source'} onClick={() => setMode('source')} disabled={busy}>Source</button>
+        </div>
         <span className="local-editor-status" role="status">{status}</span>
       </div>
       {!pickerMode && error && <p className="local-editor-error" role="alert">{error}</p>}
-      <div className="local-editor-workspace">
+      {mode === 'visual' ? (
+        <LocalVisualEditor key={documentVersion} source={source} onChange={changeSource} readOnly={busy} />
+      ) : (
         <section className="local-editor-pane">
           <label className="local-editor-pane-title" htmlFor="qmd-source">Quarto source</label>
           <textarea
             id="qmd-source"
             value={source}
-            onChange={(event) => { setSource(event.target.value); setStatus(''); }}
+            onChange={(event) => changeSource(event.target.value)}
             placeholder="Start writing or open a .qmd file…"
             spellCheck={false}
             readOnly={busy}
           />
         </section>
-        <section className="local-editor-pane" aria-labelledby="markdown-preview-title">
-          <h2 className="local-editor-pane-title" id="markdown-preview-title">Markdown preview</h2>
-          <div className="local-editor-preview">
-            <Markdown remarkPlugins={[remarkGfm]} components={previewComponents} skipHtml>{preview}</Markdown>
-          </div>
-        </section>
-      </div>
+      )}
       <dialog
         className="local-editor-picker"
         aria-labelledby="local-editor-picker-title"
