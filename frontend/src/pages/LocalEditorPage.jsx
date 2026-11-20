@@ -1,13 +1,29 @@
-import { useDeferredValue, useEffect, useState } from 'react';
+import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import './LocalEditorPage.css';
 
-const blankDocument = { name: 'untitled.qmd', handle: null, original: '', savedSource: '' };
+const blankDocument = { path: null, revision: null, original: '', savedSource: '' };
+const backendUnavailable = 'Start the local backend with pnpm start:local <checkout-path> from the Quartorium folder, then try again.';
 
-async function readSource(file) {
-  return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await file.arrayBuffer());
+async function localRequest(endpoint, options = {}) {
+  let response;
+  try {
+    response = await fetch(`/api/local/${endpoint}`, {
+      ...options,
+      headers: { 'X-Quartorium-Local': '1', ...options.headers },
+    });
+  } catch {
+    throw new Error(backendUnavailable);
+  }
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result) throw new Error(result?.error || backendUnavailable);
+  return result;
+}
+
+function parentDirectory(path) {
+  return path.split('/').slice(0, -1).join('/');
 }
 
 function toFileSource(source, original) {
@@ -15,10 +31,6 @@ function toFileSource(source, original) {
   const bom = original.startsWith('\uFEFF') ? '\uFEFF' : '';
   return bom + source.replaceAll('\n', lineEnding);
 }
-
-const pickerOptions = {
-  types: [{ description: 'Quarto document', accept: { 'text/plain': ['.qmd'] } }],
-};
 
 // Keep front matter in the source and omit it from the Markdown preview.
 const frontMatter = /^---[ \t]*\n(?:[^\n]*\n)*?(?:---|\.\.\.)[ \t]*(?:\n|$)/;
@@ -32,10 +44,12 @@ export default function LocalEditorPage() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pickerMode, setPickerMode] = useState(null);
+  const [listing, setListing] = useState(null);
+  const [fileName, setFileName] = useState('');
+  const picker = useRef(null);
   const previewSource = useDeferredValue(source);
   const dirty = source !== document.savedSource;
-  const canWriteFiles = typeof window.showOpenFilePicker === 'function'
-    && typeof window.showSaveFilePicker === 'function';
 
   useEffect(() => {
     if (!dirty) return;
@@ -59,61 +73,84 @@ export default function LocalEditorPage() {
     setStatus('');
   }
 
-  async function loadDocument(file, handle = null) {
-    if (!/\.qmd$/i.test(file.name)) throw new Error('Choose a .qmd file.');
-    const original = await readSource(file);
-    const savedSource = original.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
-    setDocument({ name: file.name, handle, original, savedSource });
-    setSource(savedSource);
-    setStatus('');
-  }
-
-  async function openDocument() {
-    if (!mayDiscard()) return;
+  async function browse(directory) {
     setError('');
     setBusy(true);
     try {
-      const [handle] = await window.showOpenFilePicker(pickerOptions);
-      await loadDocument(await handle.getFile(), handle);
+      setListing(await localRequest(`files?${new URLSearchParams({ directory })}`));
     } catch (failure) {
-      if (failure.name !== 'AbortError') setError(`Could not open the file. ${failure.message}`);
+      setError(failure.message);
     } finally {
       setBusy(false);
     }
   }
 
-  async function saveDocument(saveAs = false) {
+  function showPicker(mode) {
+    setPickerMode(mode);
+    setListing(null);
+    setFileName(document.path?.split('/').at(-1) ?? 'untitled.qmd');
+    picker.current.showModal();
+    void browse(document.path ? parentDirectory(document.path) : '');
+  }
+
+  function closePicker() {
+    picker.current.close();
+  }
+
+  function resetPicker() {
+    setPickerMode(null);
+    setError('');
+  }
+
+  async function openDocument(path) {
+    if (!mayDiscard()) return;
+    setError('');
+    setBusy(true);
+    try {
+      const opened = await localRequest(`file?${new URLSearchParams({ path })}`);
+      const savedSource = opened.content.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+      setDocument({ path: opened.path, revision: opened.revision, original: opened.content, savedSource });
+      setSource(savedSource);
+      setStatus('');
+      closePicker();
+    } catch (failure) {
+      setError(`Could not open the file. ${failure.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveDocument(path, revision) {
     const { original } = document;
     setBusy(true);
     setError('');
     setStatus('');
     try {
-      const handle = saveAs || !document.handle
-        ? await window.showSaveFilePicker({ ...pickerOptions, suggestedName: document.name })
-        : document.handle;
-      if (!/\.qmd$/i.test(handle.name)) throw new Error('Save the file with a .qmd extension.');
-
-      // A Git operation or another editor may have changed the file since we opened it.
-      if (!saveAs && document.handle && await readSource(await handle.getFile()) !== original) {
-        setError('The file changed on disk. Use Save As to keep your edits in another file.');
-        return;
-      }
       const content = dirty ? toFileSource(source, original) : original;
-      const writable = await handle.createWritable();
-      try {
-        await writable.write(content);
-        await writable.close();
-      } catch (failure) {
-        await writable.abort().catch(() => {});
-        throw failure;
-      }
-      setDocument({ name: handle.name, handle, original: content, savedSource: source });
-      setStatus(`Saved ${handle.name}`);
+      const saved = await localRequest('file', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path, content, revision }),
+      });
+      setDocument({ path: saved.path, revision: saved.revision, original: content, savedSource: source });
+      setStatus(`Saved ${saved.path}`);
+      if (pickerMode === 'save') closePicker();
     } catch (failure) {
-      if (failure.name !== 'AbortError') setError(`Could not save the file. ${failure.message}`);
+      setError(`Could not save the file. ${failure.message}`);
     } finally {
       setBusy(false);
     }
+  }
+
+  function saveAs(event) {
+    event.preventDefault();
+    const name = fileName.trim();
+    if (!/\.qmd$/i.test(name) || name.includes('/') || name.includes('\\')) {
+      setError('Enter a filename ending in .qmd and use the folder list to choose where to save it.');
+      return;
+    }
+    const path = listing.directory ? `${listing.directory}/${name}` : name;
+    void saveDocument(path, null);
   }
 
   const preview = previewSource.replace(frontMatter, '');
@@ -123,21 +160,20 @@ export default function LocalEditorPage() {
       <header className="local-editor-header">
         <div>
           <h1>Quartorium</h1>
-          <p className="local-editor-filename">{document.name}{dirty && ' · Unsaved changes'}</p>
+          <p className="local-editor-filename">{document.path ?? 'untitled.qmd'}{dirty && ' · Unsaved changes'}</p>
         </div>
-        <Link to="/dashboard" onClick={(event) => { if (!mayDiscard()) event.preventDefault(); }}>Collaboration</Link>
+        <Link to="/dashboard" onClick={(event) => { if (busy || !mayDiscard()) event.preventDefault(); }}>Collaboration</Link>
       </header>
       <div className="local-editor-toolbar">
         <button type="button" onClick={newDocument} disabled={busy}>New</button>
-        <button type="button" onClick={openDocument} disabled={busy || !canWriteFiles}>Open .qmd</button>
-        {document.handle && (
-          <button type="button" className="primary" onClick={() => saveDocument()} disabled={busy || !dirty}>Save</button>
+        <button type="button" onClick={() => showPicker('open')} disabled={busy}>Open .qmd</button>
+        {document.path && (
+          <button type="button" className="primary" onClick={() => saveDocument(document.path, document.revision)} disabled={busy || !dirty}>Save</button>
         )}
-        <button type="button" className={document.handle ? undefined : 'primary'} onClick={() => saveDocument(true)} disabled={busy || !canWriteFiles}>Save As</button>
+        <button type="button" className={document.path ? undefined : 'primary'} onClick={() => showPicker('save')} disabled={busy}>Save As</button>
         <span className="local-editor-status" role="status">{status}</span>
       </div>
-      {!canWriteFiles && <p className="local-editor-error">Open this editor in Chrome or Edge on localhost to edit files on disk.</p>}
-      {error && <p className="local-editor-error" role="alert">{error}</p>}
+      {!pickerMode && error && <p className="local-editor-error" role="alert">{error}</p>}
       <div className="local-editor-workspace">
         <section className="local-editor-pane">
           <label className="local-editor-pane-title" htmlFor="qmd-source">Quarto source</label>
@@ -157,6 +193,50 @@ export default function LocalEditorPage() {
           </div>
         </section>
       </div>
+      <dialog
+        className="local-editor-picker"
+        aria-labelledby="local-editor-picker-title"
+        onCancel={(event) => { if (busy) event.preventDefault(); }}
+        onClose={resetPicker}
+        ref={picker}
+      >
+        <header className="local-editor-picker-header">
+          <h2 id="local-editor-picker-title">{pickerMode === 'save' ? 'Save As' : 'Open .qmd'}</h2>
+          <button type="button" onClick={closePicker} disabled={busy}>Cancel</button>
+        </header>
+        <div className="local-editor-picker-location">
+          <button
+            type="button"
+            onClick={() => browse(listing?.directory ? parentDirectory(listing.directory) : '')}
+            disabled={busy || listing?.directory === ''}
+          >
+            {listing ? 'Up one folder' : 'Project root'}
+          </button>
+          <p className="local-editor-filename">{listing?.directory || 'Project root'}</p>
+        </div>
+        {busy && <p role="status">Working…</p>}
+        {error && <p className="local-editor-error" role="alert">{error}</p>}
+        {listing && (
+          <ul className="local-editor-picker-files">
+            {listing.directories.map(({ name, path }) => (
+              <li key={path}><button type="button" onClick={() => browse(path)} disabled={busy}>{name}/</button></li>
+            ))}
+            {listing.files.map(({ name, path }) => (
+              <li key={path}>
+                <button type="button" onClick={() => pickerMode === 'save' ? setFileName(name) : void openDocument(path)} disabled={busy}>{name}</button>
+              </li>
+            ))}
+            {!listing.directories.length && !listing.files.length && <li>No folders or .qmd files here.</li>}
+          </ul>
+        )}
+        {pickerMode === 'save' && listing && (
+          <form className="local-editor-picker-save" onSubmit={saveAs}>
+            <label htmlFor="local-editor-filename">Filename</label>
+            <input id="local-editor-filename" value={fileName} onChange={(event) => setFileName(event.target.value)} disabled={busy} required />
+            <button type="submit" className="primary" disabled={busy}>Save</button>
+          </form>
+        )}
+      </dialog>
     </main>
   );
 }

@@ -36,20 +36,33 @@ You must have the following tools installed directly on your system:
 *   [Git](https://git-scm.com/)
 *   [Quarto CLI](https://quarto.org/docs/get-started/) for backend rendering
 
-### Frontend only
+### Local editor
 
-From the repository root, install and start just the frontend:
+Install the frontend dependencies from the Quartorium repository root.
 
 ```bash
 pnpm --filter frontend install --frozen-lockfile
-pnpm start:frontend
 ```
 
-Open `http://localhost:5173` in Chrome or Edge. Use **Open .qmd** to select a file in your Git checkout and **Save** to write your edits to that file. Use **Save As** for a new document, then commit with your usual Git tools.
+Start the local backend with the path to the Git checkout that contains your Quarto documents.
 
-The Markdown preview runs in the browser. Use the Quarto CLI for full document rendering, including code execution and project assets. The **Collaboration** link opens the GitHub-backed workflow and requires the backend.
+```bash
+pnpm start:local "/path/to/quarto-project"
+```
 
-### Installation & Setup
+On Windows, use your full project path, for example `pnpm start:local "C:\Users\you\Documents\my-quarto-project"`.
+
+In another terminal at the Quartorium repository root, start Vite.
+
+```bash
+pnpm start:frontend --strictPort
+```
+
+Open `http://localhost:5173` in your browser. **Open .qmd** browses the selected checkout, **Save** edits an existing file in place, and **Save As** creates a new file. Commit edits with your usual Git tools. Local mode uses the Node.js runtime and starts without GitHub credentials or SQLite.
+
+The Markdown preview runs in the browser. Use the Quarto CLI for full document rendering, including code execution and project assets. The **Collaboration** link opens the optional GitHub-backed workflow.
+
+### Collaboration setup
 
 1.  **Clone the repository:**
     ```bash
