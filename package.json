@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "start:backend": "npm run start --workspace=backend --",
+    "prestart:frontend": "node scripts/sync-frontend-dependencies.mjs",
     "start:frontend": "npm run dev --workspace=frontend --"
   },
   "keywords": [],

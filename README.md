@@ -38,12 +38,13 @@ You must have the following tools installed directly on your system:
 
 ### Frontend only
 
-From the repository root, install and start just the frontend:
+From the repository root, start the frontend:
 
 ```bash
-pnpm --filter frontend install --frozen-lockfile
 pnpm start:frontend
 ```
+
+This command syncs the frontend dependencies from the lockfile before starting Vite. After pulling updates, restart Vite with the same command. If you're still on an older checkout and Vite reports a missing import, run `pnpm --filter frontend install --frozen-lockfile` before restarting.
 
 Open `http://localhost:5173` in Chrome or Edge. Use **Open .qmd** to select a file in your Git checkout and **Save** to write your edits to that file. Use **Save As** for a new document, then commit with your usual Git tools.
 
@@ -99,7 +100,7 @@ The root `package.json` contains helper scripts to manage the project:
 *   `npm run start:backend`: Starts the backend server in development mode.
 *   `npm run start:frontend`: Starts the frontend development server.
 
-With pnpm, use `pnpm start:backend` and `pnpm start:frontend` after installing the corresponding workspaces.
+With pnpm, use `pnpm start:backend` after installing the backend workspace. `pnpm start:frontend` handles its own dependency install.
 
 ### ⚠️ A Note on Security
 

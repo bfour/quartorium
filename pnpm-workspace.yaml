@@ -2,7 +2,7 @@ packages:
   - backend
   - frontend
 
-# Preserve frontend-only installations when running scripts from the root.
+# The frontend start script syncs its own dependencies. The default check can install the whole workspace.
 verifyDepsBeforeRun: false
 
 allowBuilds:
