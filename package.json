@@ -16,9 +16,9 @@
   "author": "",
   "license": "GPL-3.0-only",
   "dependencies": {
-    "@tiptap/extension-link": "^2.14.0"
+    "@tiptap/extension-link": "2.14.0"
   },
   "devDependencies": {
-    "axios": "^1.10.0"
+    "axios": "1.10.0"
   }
 }
