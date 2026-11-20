@@ -12,6 +12,7 @@
   "dependencies": {
     "@tiptap/core": "2.14.0",
     "@tiptap/extension-link": "2.14.0",
+    "@tiptap/pm": "2.14.0",
     "@tiptap/react": "2.14.0",
     "@tiptap/starter-kit": "2.14.0",
     "katex": "0.16.22",
@@ -22,9 +23,10 @@
     "react-diff-viewer": "3.1.1",
     "react-dom": "19.1.0",
     "react-katex": "3.1.0",
-    "react-markdown": "10.1.0",
     "react-router-dom": "7.6.2",
-    "remark-gfm": "4.0.1"
+    "remark-gfm": "4.0.1",
+    "remark-parse": "11.0.0",
+    "unified": "11.0.5"
   },
   "devDependencies": {
     "@eslint/js": "9.29.0",

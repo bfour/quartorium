@@ -60,7 +60,7 @@ pnpm start:frontend --strictPort
 
 Open `http://localhost:5173` in your browser. **Open .qmd** browses the selected checkout, **Save** edits an existing file in place, and **Save As** creates a new file. Commit edits with your usual Git tools. Local mode uses the Node.js runtime and starts without GitHub credentials or SQLite.
 
-The Markdown preview runs in the browser. Use the Quarto CLI for full document rendering, including code execution and project assets. The **Collaboration** link opens the optional GitHub-backed workflow.
+The local editor opens in **Visual** mode. Edit prose, headings, and lists directly, or switch to **Source** to edit Quarto metadata, executable code chunks, and other Quarto syntax. Visual mode preserves those sections as source blocks. Use the Quarto CLI to render code outputs and project assets. The **Collaboration** link opens the optional GitHub-backed workflow.
 
 ### Collaboration setup
 
