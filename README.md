@@ -45,7 +45,9 @@ pnpm --filter frontend install --frozen-lockfile
 pnpm start:frontend
 ```
 
-Vite serves the UI at `http://localhost:5173` by default. This setup skips SQLite and its Windows build prerequisites. Sign-in and API requests still need the backend.
+Open `http://localhost:5173` in Chrome or Edge. Use **Open .qmd** to select a file in your Git checkout and **Save** to write your edits to that file. Use **Save As** for a new document, then commit with your usual Git tools.
+
+The Markdown preview runs in the browser. Use the Quarto CLI for full document rendering, including code execution and project assets. The **Collaboration** link opens the GitHub-backed workflow and requires the backend.
 
 ### Installation & Setup
 
