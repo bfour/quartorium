@@ -1,0 +1,10 @@
+packages:
+  - backend
+  - frontend
+
+# Preserve frontend-only installations when running scripts from the root.
+verifyDepsBeforeRun: false
+
+allowBuilds:
+  esbuild: true
+  sqlite3: true

@@ -31,9 +31,21 @@ Follow these instructions to get Quartorium running on your local machine for de
 ### Prerequisites
 
 You must have the following tools installed directly on your system:
-*   [Node.js](https://nodejs.org/) (v18 or later)
+*   [Node.js](https://nodejs.org/) (v22.13 or later)
+*   npm (included with Node.js) or [pnpm](https://pnpm.io/installation) 11
 *   [Git](https://git-scm.com/)
-*   [Quarto CLI](https://quarto.org/docs/get-started/)
+*   [Quarto CLI](https://quarto.org/docs/get-started/) for backend rendering
+
+### Frontend only
+
+From the repository root, install and start just the frontend:
+
+```bash
+pnpm --filter frontend install --frozen-lockfile
+pnpm start:frontend
+```
+
+Vite serves the UI at `http://localhost:5173` by default. This setup skips SQLite and its Windows build prerequisites. Sign-in and API requests still need the backend.
 
 ### Installation & Setup
 
@@ -43,16 +55,21 @@ You must have the following tools installed directly on your system:
     cd quartorium
     ```
 
-2.  **Install all dependencies:**
-    This command will run `npm install` in the root, `backend`, and `frontend` directories.
+2.  **Install all dependencies** with either package manager:
     ```bash
-    npm install
+    pnpm install --frozen-lockfile
     ```
+
+    ```bash
+    npm ci --legacy-peer-deps
+    ```
+
+    On Windows, the backend's SQLite package downloads a prebuilt binary from GitHub. If the download fails and it compiles locally, install the Windows SDK through the Visual Studio Build Tools C++ workload and use Python 3.11 with the bundled node-gyp 8.
 
 3.  **Set up environment variables:**
     Copy the example environment file. The default settings with SQLite should work out of the box for local development. You will still need to add GitHub API keys to enable login.
     ```bash
-    cp .env.example .env
+    cp backend/.env.example backend/.env
     ```
     To get your GitHub keys, create a new GitHub OAuth App in your developer settings.
 
@@ -69,17 +86,18 @@ You must have the following tools installed directly on your system:
         ```bash
         npm run start:frontend
         ```
-        This will start the React development server, typically on `http://localhost:3000`.
+        This starts the React development server at `http://localhost:5173` by default.
 
 5.  **Open the app:**
-    Navigate to `http://localhost:3000` in your web browser.
+    Navigate to `http://localhost:5173` in your web browser.
 
 ### Scripts
 
 The root `package.json` contains helper scripts to manage the project:
-*   `npm install`: Installs dependencies for all workspaces.
 *   `npm run start:backend`: Starts the backend server in development mode.
 *   `npm run start:frontend`: Starts the frontend development server.
+
+With pnpm, use `pnpm start:backend` and `pnpm start:frontend` after installing the corresponding workspaces.
 
 ### ⚠️ A Note on Security
 
