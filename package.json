@@ -8,9 +8,8 @@
     "frontend"
   ],
   "scripts": {
-    "start:backend": "npm run start --workspace=backend",
-    "start:frontend": "npm run dev --workspace=frontend",
-    "install": "npm install --workspaces --if-present"
+    "start:backend": "npm run start --workspace=backend --",
+    "start:frontend": "npm run dev --workspace=frontend --"
   },
   "keywords": [],
   "author": "",

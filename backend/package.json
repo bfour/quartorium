@@ -25,6 +25,7 @@
     "remark-gfm": "4.0.1",
     "remark-parse": "11.0.0",
     "sqlite3": "5.1.7",
+    "unified": "11.0.5",
     "uuid": "11.1.0",
     "xml2js": "0.6.2"
   },
