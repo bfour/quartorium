@@ -8,6 +8,7 @@
     "frontend"
   ],
   "scripts": {
+    "start:local": "node backend/src/server.js --local",
     "start:backend": "npm run start --workspace=backend --",
     "start:frontend": "npm run dev --workspace=frontend --"
   },
